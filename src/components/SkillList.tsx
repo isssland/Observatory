@@ -7,8 +7,8 @@ interface Props {
 export default function SkillList({ skills }: Props) {
   if (skills.length === 0) {
     return (
-      <p className="text-slate-500 text-sm text-center py-8">
-        No skills yet. Write a journal entry to discover them.
+      <p className="text-stone-400 text-xs text-center py-6 font-typewriter">
+        No skills on file.
       </p>
     )
   }
@@ -16,39 +16,39 @@ export default function SkillList({ skills }: Props) {
   return (
     <div className="space-y-2">
       {skills.map((skill) => {
-        const progress = (skill.currentXp / skill.xpToNextLevel) * 100
+        const filled = Math.round((skill.currentXp / skill.xpToNextLevel) * 16)
+        const empty = 16 - filled
 
         return (
           <div
             key={skill.id}
-            className="bg-slate-800 rounded-lg p-3 border border-slate-700"
+            className="group py-2 border-b border-dashed border-stone-300 last:border-b-0"
           >
-            <div className="flex justify-between items-center mb-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-200">
+            {/* 技能名 + 等级 */}
+            <div className="flex justify-between items-baseline">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm text-stone-700 font-typewriter">
                   {skill.name}
                 </span>
                 {skill.isDynamic && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400 font-mono">
-                    NEW
+                  <span className="text-[8px] text-red-700 border border-red-700/40 px-1.5 py-0 uppercase tracking-widest font-typewriter opacity-80">
+                    DISCOVERED
                   </span>
                 )}
               </div>
-              <span className="text-sm font-mono text-emerald-400 font-bold">
-                Lv.{skill.level}
+              <span className="text-sm text-stone-600 tabular-nums font-typewriter">
+                Lv.{String(skill.level).padStart(2, '0')}
               </span>
             </div>
 
-            {/* 经验条 */}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(progress, 100)}%` }}
-                />
-              </div>
-              <span className="text-[10px] text-slate-500 font-mono w-16 text-right">
-                {skill.currentXp}/{skill.xpToNextLevel} XP
+            {/* XP 进度线 */}
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-xs text-stone-500 select-none tracking-tighter">
+                {'|'.repeat(filled)}
+                <span className="text-stone-300">{':'.repeat(empty)}</span>
+              </span>
+              <span className="text-[9px] text-stone-400 tabular-nums whitespace-nowrap">
+                {skill.currentXp}/{skill.xpToNextLevel}
               </span>
             </div>
           </div>

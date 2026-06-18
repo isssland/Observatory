@@ -4,32 +4,72 @@ interface Props {
   status: StatusAttributes
 }
 
-const STATUS_CONFIG: { key: keyof StatusAttributes; label: string; color: string }[] = [
-  { key: 'san', label: 'SAN', color: 'text-violet-400' },
-  { key: 'focus', label: 'Focus', color: 'text-sky-400' },
-  { key: 'energy', label: 'Energy', color: 'text-emerald-400' },
+const STATUS = [
+  {
+    key: 'san' as const,
+    label: 'SAN',
+    // 大脑/头部的简单线条图标
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <ellipse cx="10" cy="14" rx="4" ry="5" strokeLinecap="round" />
+        <ellipse cx="22" cy="14" rx="4" ry="5" strokeLinecap="round" />
+        <path d="M10 19c0 0 2 4 6 4s6-4 6-4" strokeLinecap="round" />
+        <circle cx="16" cy="12" r="8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    key: 'focus' as const,
+    label: 'Focus',
+    // 眼睛/注视的简单线条图标
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <circle cx="16" cy="16" r="3" />
+        <path d="M4 16s5-9 12-9 12 9 12 9-5 9-12 9-12-9-12-9z" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    key: 'energy' as const,
+    label: 'Energy',
+    // 闪电图标
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+        <path d="M18 4l-10 14h6l-2 10 10-14h-6l2-10z" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
 ]
 
 export default function StatusCard({ status }: Props) {
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {STATUS_CONFIG.map(({ key, label, color }) => (
-        <div
-          key={key}
-          className="bg-slate-800 rounded-xl p-4 text-center border border-slate-700"
-        >
-          <div className="text-xs text-slate-400 mb-1 font-mono">{label}</div>
-          <div className={`text-3xl font-bold font-mono ${color}`}>
-            {status[key]}
+    <div className="grid grid-cols-3 gap-4">
+      {STATUS.map(({ key, label, icon }) => (
+        <div key={key} className="text-center">
+          {/* 图标 */}
+          <div className="text-stone-400 mb-1 flex justify-center">
+            {icon}
           </div>
-          {/* 简易进度条 */}
-          <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                key === 'san' ? 'bg-violet-500' : key === 'focus' ? 'bg-sky-500' : 'bg-emerald-500'
-              }`}
-              style={{ width: `${status[key]}%` }}
-            />
+          {/* 标签 */}
+          <div className="text-[10px] text-stone-500 tracking-widest mb-1">
+            {label}
+          </div>
+          {/* 数值 */}
+          <div className="text-2xl text-stone-700 tabular-nums">
+            {String(status[key]).padStart(2, '0')}
+          </div>
+          {/* 状态条 — 打字机短线 */}
+          <div className="mt-2 flex justify-center gap-[1px]">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <span
+                key={i}
+                className={`inline-block w-1.5 h-1 ${
+                  i < Math.round(status[key] / 10)
+                    ? 'bg-stone-500'
+                    : 'bg-stone-300'
+                }`}
+              />
+            ))}
           </div>
         </div>
       ))}

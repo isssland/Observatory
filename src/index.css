@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: 'Traveling Typewriter';
+  src: url('/fonts/TravelingTypewriter-nRRqY.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-typewriter: "Traveling Typewriter", "Courier Prime", monospace;
+}

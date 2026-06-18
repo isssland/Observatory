@@ -9,7 +9,6 @@ interface Props {
 }
 
 export default function Analysis({ entryText, analysis, onConfirm, onDiscard }: Props) {
-  // 用户可编辑的临时副本
   const [editing, setEditing] = useState(false)
   const [edited, setEdited] = useState<AiAnalysis>(() =>
     structuredClone(analysis)
@@ -18,93 +17,113 @@ export default function Analysis({ entryText, analysis, onConfirm, onDiscard }: 
   const data = editing ? edited : analysis
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-8 pb-4">
-      <h1 className="text-xl font-bold mb-1 text-amber-400 font-mono">Analysis</h1>
-      <p className="text-xs text-slate-500 mb-6">
-        AI analyzed your entry. Review the changes, then confirm or edit.
-      </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* 遮罩 */}
+      <div className="absolute inset-0 bg-stone-900/80" onClick={onDiscard} />
 
-      {/* 原始日志摘要 */}
-      <div className="mb-6 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
-          Journal Entry
-        </div>
-        <p className="text-xs text-slate-400 line-clamp-3">{entryText}</p>
-      </div>
+      {/* 弹窗 — CRT 终端风格 */}
+      <div className="relative bg-stone-900 border-4 border-stone-600 w-full max-w-sm overflow-hidden"
+        style={{ boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5), 0 8px 32px rgba(0,0,0,0.4)' }}
+      >
+        {/* 扫描线 */}
+        <div
+          className="absolute inset-0 pointer-events-none z-10 opacity-[0.03]"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
+          }}
+        />
 
-      {/* 状态变化 */}
-      <section className="mb-6">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Status Changes
-        </h2>
-        <StatusChangeRow label="SAN" value={data.statusChanges.san} editing={editing} onChange={(v) => updateStatus('san', v)} />
-        <StatusChangeRow label="Focus" value={data.statusChanges.focus} editing={editing} onChange={(v) => updateStatus('focus', v)} />
-        <StatusChangeRow label="Energy" value={data.statusChanges.energy} editing={editing} onChange={(v) => updateStatus('energy', v)} />
-      </section>
-
-      {/* 技能变化 */}
-      <section className="mb-8">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Skill XP Changes
-        </h2>
-        {data.skillXpChanges.length === 0 ? (
-          <p className="text-xs text-slate-600 py-2">No skill changes detected.</p>
-        ) : (
-          <div className="space-y-1.5">
-            {data.skillXpChanges.map((sc, i) => (
-              <SkillChangeRow key={i} change={sc} editing={editing} onChange={(v) => updateSkill(i, v)} />
-            ))}
+        <div className="relative z-20 p-5 font-typewriter">
+          {/* 页眉 */}
+          <div className="text-[9px] text-amber-600/60 tracking-widest mb-4 flex justify-between">
+            <span>ANALYSIS RESULT</span>
+            <span className="animate-pulse">●</span>
           </div>
-        )}
-      </section>
 
-      {/* 操作按钮 */}
-      <div className="flex gap-3">
-        {editing ? (
-          <>
-            <button
-              onClick={() => {
-                setEditing(false)
-                setEdited(structuredClone(analysis))
-              }}
-              className="flex-1 py-3 rounded-lg font-semibold text-sm bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
-            >
-              Cancel Edit
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="flex-1 py-3 rounded-lg font-semibold text-sm bg-sky-600 text-white hover:bg-sky-500 transition-colors"
-            >
-              Done Editing
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={onDiscard}
-              className="flex-1 py-3 rounded-lg font-semibold text-sm bg-slate-700 text-slate-400 hover:bg-slate-600 transition-colors"
-            >
-              Discard
-            </button>
-            <button
-              onClick={() => setEditing(true)}
-              className="flex-1 py-3 rounded-lg font-semibold text-sm bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
-            >
-              Edit
-            </button>
-            <button
-              onClick={onConfirm}
-              className="flex-1 py-3 rounded-lg font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.98] transition-all"
-            >
-              Confirm
-            </button>
-          </>
-        )}
+          {/* 源日志 */}
+          <div className="mb-4 p-2 border border-amber-900/20 bg-amber-900/5">
+            <div className="text-[8px] text-amber-700/50 tracking-widest mb-1">SOURCE</div>
+            <p className="text-[9px] text-amber-600/40 leading-relaxed line-clamp-2">{entryText}</p>
+          </div>
+
+          {/* 状态变化 */}
+          <div className="mb-4">
+            <div className="text-[8px] text-amber-700/50 tracking-widest mb-2">
+              STATUS DELTA
+            </div>
+            <div className="space-y-1">
+              <DeltaLine label="SAN" value={data.statusChanges.san} editing={editing} onChange={(v) => updateStatus('san', v)} />
+              <DeltaLine label="Focus" value={data.statusChanges.focus} editing={editing} onChange={(v) => updateStatus('focus', v)} />
+              <DeltaLine label="Energy" value={data.statusChanges.energy} editing={editing} onChange={(v) => updateStatus('energy', v)} />
+            </div>
+          </div>
+
+          {/* 技能变化 */}
+          <div className="mb-5">
+            <div className="text-[8px] text-amber-700/50 tracking-widest mb-2">
+              SKILL EXPERIENCE
+            </div>
+            {data.skillXpChanges.length === 0 ? (
+              <div className="text-[10px] text-amber-600/30 py-2">NO_CHANGES</div>
+            ) : (
+              <div className="space-y-1">
+                {data.skillXpChanges.map((sc, i) => (
+                  <SkillDeltaLine key={i} change={sc} editing={editing} onChange={(v) => updateSkill(i, v)} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 按钮 */}
+          <div className="space-y-2">
+            {editing ? (
+              <>
+                <button
+                  onClick={() => {
+                    setEditing(false)
+                    setEdited(structuredClone(analysis))
+                  }}
+                  className="w-full py-2.5 border border-amber-800/30 text-amber-600/50 text-[10px] font-typewriter tracking-widest hover:border-amber-700/50 hover:text-amber-500/70"
+                >
+                  CANCEL EDIT
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="w-full py-2.5 border border-amber-600/40 text-amber-500 text-[10px] font-typewriter tracking-widest hover:border-amber-500 hover:text-amber-400"
+                >
+                  DONE EDITING
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={onConfirm}
+                  className="w-full py-2.5 border border-amber-600/40 text-amber-500 text-[10px] font-typewriter tracking-widest hover:border-amber-500 hover:text-amber-400 hover:bg-amber-900/10 transition-colors"
+                >
+                  [ WRITE TO FILE ]
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="flex-1 py-2.5 border border-amber-800/30 text-amber-600/50 text-[10px] font-typewriter tracking-widest hover:border-amber-700/50 hover:text-amber-500/70"
+                  >
+                    EDIT
+                  </button>
+                  <button
+                    onClick={onDiscard}
+                    className="flex-1 py-2.5 border border-amber-800/20 text-amber-700/30 text-[10px] font-typewriter tracking-widest hover:border-amber-700/40 hover:text-amber-600/50"
+                  >
+                    DISCARD
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
 
-  // ===== 内联更新函数 =====
   function updateStatus(key: keyof StatusAttributes, value: number) {
     setEdited((prev) => ({
       ...prev,
@@ -115,7 +134,7 @@ export default function Analysis({ entryText, analysis, onConfirm, onDiscard }: 
   function updateSkill(index: number, xpGain: number) {
     setEdited((prev) => {
       const updated = [...prev.skillXpChanges]
-      updated[index] = { ...updated[index], xpGain }
+      updated[index] = { ...updated[index], xpGain: Math.max(0, xpGain) }
       return { ...prev, skillXpChanges: updated }
     })
   }
@@ -123,7 +142,7 @@ export default function Analysis({ entryText, analysis, onConfirm, onDiscard }: 
 
 // ===== 子组件 =====
 
-function StatusChangeRow({
+function DeltaLine({
   label,
   value,
   editing,
@@ -134,51 +153,33 @@ function StatusChangeRow({
   editing: boolean
   onChange: (v: number) => void
 }) {
-  const isPositive = value > 0
-  const hasChange = value !== 0
+  const sign = value > 0 ? '+' : ''
+  const color = value > 0 ? 'text-amber-400' : value < 0 ? 'text-amber-700/50' : 'text-amber-700/30'
 
   return (
-    <div className="flex items-center justify-between py-2 px-3 bg-slate-800/50 rounded-lg border border-slate-800">
-      <span className="text-sm font-mono text-slate-300">{label}</span>
+    <div className="flex items-center justify-between py-1.5 px-2">
+      <span className="text-[10px] text-amber-500/70 tracking-wider">{label}</span>
       {editing ? (
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => onChange(value - 1)}
-            className="w-7 h-7 rounded bg-slate-700 text-slate-300 text-sm hover:bg-slate-600"
-          >
-            −
-          </button>
+          <button onClick={() => onChange(value - 1)} className="w-5 h-5 border border-amber-800/40 text-amber-600/50 text-xs hover:border-amber-700/60">−</button>
           <input
             type="number"
             value={value}
             onChange={(e) => onChange(Number(e.target.value) || 0)}
-            className="w-14 text-center bg-slate-700 rounded py-1 text-sm font-mono text-slate-200 border border-slate-600"
+            className="w-10 text-center bg-transparent border border-amber-800/40 py-0.5 text-[10px] text-amber-400 tabular-nums"
           />
-          <button
-            onClick={() => onChange(value + 1)}
-            className="w-7 h-7 rounded bg-slate-700 text-slate-300 text-sm hover:bg-slate-600"
-          >
-            +
-          </button>
+          <button onClick={() => onChange(value + 1)} className="w-5 h-5 border border-amber-800/40 text-amber-600/50 text-xs hover:border-amber-700/60">+</button>
         </div>
       ) : (
-        <span
-          className={`text-sm font-mono font-bold ${
-            hasChange
-              ? isPositive
-                ? 'text-emerald-400'
-                : 'text-red-400'
-              : 'text-slate-600'
-          }`}
-        >
-          {hasChange ? (isPositive ? `+${value}` : `${value}`) : '—'}
+        <span className={`text-[10px] tabular-nums ${color}`}>
+          {value === 0 ? '·' : `${sign}${value}`}
         </span>
       )}
     </div>
   )
 }
 
-function SkillChangeRow({
+function SkillDeltaLine({
   change,
   editing,
   onChange,
@@ -188,40 +189,28 @@ function SkillChangeRow({
   onChange: (v: number) => void
 }) {
   return (
-    <div className="flex items-center justify-between py-2 px-3 bg-slate-800/50 rounded-lg border border-slate-800">
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-slate-300">{change.skillName}</span>
+    <div className="flex items-center justify-between py-1.5 px-2">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-amber-500/70 tracking-wider">{change.skillName}</span>
         {change.isNewSkill && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400 font-mono">
+          <span className="text-[7px] text-red-600/60 border border-red-700/30 px-1 uppercase tracking-widest">
             NEW
           </span>
         )}
       </div>
       {editing ? (
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => onChange(Math.max(0, change.xpGain - 1))}
-            className="w-7 h-7 rounded bg-slate-700 text-slate-300 text-sm hover:bg-slate-600"
-          >
-            −
-          </button>
+          <button onClick={() => onChange(change.xpGain - 1)} className="w-5 h-5 border border-amber-800/40 text-amber-600/50 text-xs hover:border-amber-700/60">−</button>
           <input
             type="number"
             value={change.xpGain}
             onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
-            className="w-14 text-center bg-slate-700 rounded py-1 text-sm font-mono text-slate-200 border border-slate-600"
+            className="w-10 text-center bg-transparent border border-amber-800/40 py-0.5 text-[10px] text-amber-400 tabular-nums"
           />
-          <button
-            onClick={() => onChange(change.xpGain + 1)}
-            className="w-7 h-7 rounded bg-slate-700 text-slate-300 text-sm hover:bg-slate-600"
-          >
-            +
-          </button>
+          <button onClick={() => onChange(change.xpGain + 1)} className="w-5 h-5 border border-amber-800/40 text-amber-600/50 text-xs hover:border-amber-700/60">+</button>
         </div>
       ) : (
-        <span className="text-sm font-mono font-bold text-emerald-400">
-          +{change.xpGain} XP
-        </span>
+        <span className="text-[10px] text-amber-400 tabular-nums">+{change.xpGain} XP</span>
       )}
     </div>
   )

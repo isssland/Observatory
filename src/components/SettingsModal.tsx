@@ -21,9 +21,7 @@ export default function SettingsModal({ open, onClose }: Props) {
           const parsed = JSON.parse(raw)
           if (parsed.apiKey) setApiKey(parsed.apiKey)
         }
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
       setSaved(false)
     }
   }, [open])
@@ -40,83 +38,64 @@ export default function SettingsModal({ open, onClose }: Props) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* 遮罩 */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-stone-900/70" onClick={onClose} />
 
-      {/* 面板 */}
-      <div className="relative bg-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 border border-slate-700 shadow-2xl">
-        <h2 className="text-lg font-bold text-slate-100 mb-4 font-mono">Settings</h2>
+      <div className="relative bg-white border border-stone-300 shadow-lg w-full max-w-sm p-6 font-typewriter">
+        <h2 className="text-sm font-bold text-stone-700 tracking-widest mb-4">SETTINGS</h2>
 
-        {/* API 提供商 */}
-        <label className="block text-xs text-slate-400 mb-1.5">API Provider</label>
+        <label className="block text-[9px] text-stone-500 tracking-widest mb-1.5">
+          API PROVIDER
+        </label>
         <div className="flex gap-1.5 mb-4">
-          <button
-            onClick={() => setProvider('deepseek')}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              provider === 'deepseek'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-700 text-slate-400'
-            }`}
-          >
-            DeepSeek
-          </button>
-          <button
-            onClick={() => setProvider('claude')}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              provider === 'claude'
-                ? 'bg-violet-600 text-white'
-                : 'bg-slate-700 text-slate-400'
-            }`}
-          >
-            Claude
-          </button>
-          <button
-            onClick={() => setProvider('openai')}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              provider === 'openai'
-                ? 'bg-sky-600 text-white'
-                : 'bg-slate-700 text-slate-400'
-            }`}
-          >
-            OpenAI
-          </button>
+          {(['deepseek', 'claude', 'openai'] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setProvider(p)}
+              className={`flex-1 py-2 border text-[10px] font-typewriter tracking-widest transition-colors ${
+                provider === p
+                  ? 'border-stone-600 text-stone-700 bg-stone-100'
+                  : 'border-stone-300 text-stone-400 hover:border-stone-400'
+              }`}
+            >
+              {p === 'deepseek' ? 'DEEPSEEK' : p === 'claude' ? 'CLAUDE' : 'OPENAI'}
+            </button>
+          ))}
         </div>
 
-        {/* API Key 输入 */}
-        <label className="block text-xs text-slate-400 mb-1.5">API Key</label>
+        <label className="block text-[9px] text-stone-500 tracking-widest mb-1.5">
+          API KEY
+        </label>
         <input
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder={provider === 'claude' ? 'sk-ant-...' : 'sk-...'}
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-600"
+          placeholder="sk-..."
+          className="w-full border border-stone-300 px-3 py-2 text-[10px] text-stone-700 placeholder-stone-400 font-typewriter focus:outline-none focus:border-stone-500"
         />
-        <p className="text-[10px] text-slate-600 mt-1.5">
-          Your key is stored locally in your browser. It is never sent to any server other than the API provider.
+        <p className="text-[8px] text-stone-400 mt-1.5 font-typewriter">
+          Key stored locally. Never sent to any server except the API provider.
         </p>
 
-        {/* 保存 */}
         <button
           onClick={handleSave}
           disabled={!apiKey.trim()}
-          className={`mt-4 w-full py-2.5 rounded-lg font-semibold text-sm transition-all ${
+          className={`mt-4 w-full py-2.5 border font-typewriter text-[10px] tracking-widest transition-colors ${
             saved
-              ? 'bg-emerald-600 text-white'
+              ? 'border-stone-600 text-stone-700 bg-stone-100'
               : apiKey.trim()
-                ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                ? 'border-stone-600 text-stone-700 hover:bg-stone-100'
+                : 'border-stone-300 text-stone-300 cursor-default'
           }`}
         >
-          {saved ? '✓ Saved!' : 'Save'}
+          {saved ? 'SAVED' : 'SAVE'}
         </button>
 
-        {/* 关闭 */}
         <button
           onClick={onClose}
-          className="mt-2 w-full py-2 rounded-lg text-sm text-slate-500 hover:text-slate-300 transition-colors"
+          className="mt-2 w-full py-2 text-[10px] text-stone-400 hover:text-stone-600 font-typewriter tracking-widest transition-colors"
         >
-          Close
+          CLOSE
         </button>
       </div>
     </div>

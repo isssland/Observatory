@@ -11,44 +11,54 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('sheet')
   const [pendingEntry, setPendingEntry] = useState<string>('')
   const [pendingAnalysis, setPendingAnalysis] = useState<AiAnalysis | null>(null)
+  const [printing, setPrinting] = useState(false)
+
   const hydrate = useCharacterStore((s) => s.hydrate)
   const applyAnalysis = useCharacterStore((s) => s.applyAnalysis)
 
-  // 启动时从 IndexedDB 加载数据
   useEffect(() => {
     hydrate()
   }, [hydrate])
 
-  // Entry → Analysis（AI 分析完成后）
   const handleAnalysisComplete = (entryText: string, analysis: AiAnalysis) => {
     setPendingEntry(entryText)
     setPendingAnalysis(analysis)
     setCurrentPage('analysis')
   }
 
-  // Analysis → Sheet（用户确认）
+  // 确认 → 打印动画 → 更新数据
   const handleConfirm = () => {
-    if (pendingAnalysis) {
-      applyAnalysis(pendingEntry, pendingAnalysis)
-    }
-    setPendingEntry('')
-    setPendingAnalysis(null)
+    if (!pendingAnalysis) return
+
     setCurrentPage('sheet')
+    setPrinting(true)
+
+    // 动画播完后再更新数据
+    setTimeout(() => {
+      applyAnalysis(pendingEntry, pendingAnalysis)
+      setPendingEntry('')
+      setPendingAnalysis(null)
+      setPrinting(false)
+    }, 1200)
   }
 
-  // Analysis → Entry（用户修改）
-  const handleCancel = () => {
+  const handleDiscard = () => {
     setPendingEntry('')
     setPendingAnalysis(null)
     setCurrentPage('entry')
   }
 
-  const showTabBar = currentPage !== 'analysis'
-
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 pb-16">
-      {/* Page content */}
-      {currentPage === 'sheet' && <CharacterSheet />}
+    <div className="min-h-screen bg-stone-200 text-stone-800 font-typewriter pb-14">
+      {/* ===== 纸张纹理背景 ===== */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")`,
+        }}
+      />
+
+      {/* ===== 页面内容 ===== */}
+      {currentPage === 'sheet' && <CharacterSheet printing={printing} />}
       {currentPage === 'entry' && (
         <NewEntry onAnalysisComplete={handleAnalysisComplete} />
       )}
@@ -57,35 +67,33 @@ export default function App() {
           entryText={pendingEntry}
           analysis={pendingAnalysis}
           onConfirm={handleConfirm}
-          onDiscard={handleCancel}
+          onDiscard={handleDiscard}
         />
       )}
 
-      {/* Bottom Tab Bar（Analysis 页面隐藏） */}
-      {showTabBar && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700">
-          <div className="flex justify-around items-center h-14 max-w-md mx-auto">
+      {/* ===== 底部 Tab Bar — 档案标签 ===== */}
+      {currentPage !== 'analysis' && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-stone-100 border-t border-stone-300 z-40">
+          <div className="flex max-w-md mx-auto">
             <button
               onClick={() => setCurrentPage('sheet')}
-              className={`flex flex-col items-center px-6 py-1 text-xs transition-colors ${
-                currentPage === 'sheet' ? 'text-emerald-400' : 'text-slate-400'
+              className={`flex-1 py-3 font-typewriter text-xs tracking-widest border-b-2 transition-colors ${
+                currentPage === 'sheet'
+                  ? 'border-stone-600 text-stone-700'
+                  : 'border-transparent text-stone-400 hover:text-stone-500'
               }`}
             >
-              <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              Sheet
+              FILE
             </button>
             <button
               onClick={() => setCurrentPage('entry')}
-              className={`flex flex-col items-center px-6 py-1 text-xs transition-colors ${
-                currentPage === 'entry' ? 'text-emerald-400' : 'text-slate-400'
+              className={`flex-1 py-3 font-typewriter text-xs tracking-widest border-b-2 transition-colors ${
+                currentPage === 'entry'
+                  ? 'border-stone-600 text-stone-700'
+                  : 'border-transparent text-stone-400 hover:text-stone-500'
               }`}
             >
-              <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Entry
+              LOG
             </button>
           </div>
         </nav>
