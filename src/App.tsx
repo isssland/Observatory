@@ -26,16 +26,13 @@ export default function App() {
     setCurrentPage('analysis')
   }
 
-  // 确认 → 打印动画 → 更新数据
-  const handleConfirm = () => {
-    if (!pendingAnalysis) return
-
+  // 确认 → 打印动画 → 更新数据（使用编辑后的 analysis）
+  const handleConfirm = (finalAnalysis: AiAnalysis) => {
     setCurrentPage('sheet')
     setPrinting(true)
 
-    // 动画播完后再更新数据
     setTimeout(() => {
-      applyAnalysis(pendingEntry, pendingAnalysis)
+      applyAnalysis(pendingEntry, finalAnalysis)
       setPendingEntry('')
       setPendingAnalysis(null)
       setPrinting(false)

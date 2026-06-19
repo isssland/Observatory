@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { useCharacterStore } from '../store/characterStore'
-import { analyzeEntry, getStoredProvider } from '../services/aiAnalysis'
+import { useEntrySubmission } from '../hooks/useEntrySubmission'
+import { getStoredProvider } from '../services/aiAnalysis'
 import type { AiAnalysis } from '../types'
 
 interface Props {
@@ -8,39 +7,8 @@ interface Props {
 }
 
 export default function Terminal({ onAnalysisComplete }: Props) {
-  const [text, setText] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [cursorVisible, setCursorVisible] = useState(true)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  const character = useCharacterStore((s) => s)
+  const { text, setText, loading, error, cursorVisible, textareaRef, submit } = useEntrySubmission(onAnalysisComplete)
   const provider = getStoredProvider()
-
-  useEffect(() => {
-    const interval = setInterval(() => setCursorVisible((v) => !v), 530)
-    return () => clearInterval(interval)
-  }, [])
-
-  const handleSubmit = async () => {
-    const trimmed = text.trim()
-    if (!trimmed) return
-    setLoading(true)
-    setError(null)
-
-    const result = await analyzeEntry(
-      { status: character.status, skills: character.skills, entries: character.entries },
-      trimmed
-    )
-    setLoading(false)
-
-    if (result.success) {
-      onAnalysisComplete(trimmed, result.analysis)
-      setText('')
-    } else {
-      setError(result.error)
-    }
-  }
 
   return (
     <div className="max-w-sm mx-auto px-2 pb-3 relative z-10">
@@ -93,13 +61,13 @@ export default function Terminal({ onAnalysisComplete }: Props) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault()
-                  handleSubmit()
+                  submit()
                 }
               }}
               placeholder="…"
               rows={3}
               className="w-full bg-transparent border-none outline-none text-amber-400/80 placeholder-amber-700/30 resize-none leading-relaxed font-typewriter text-xs"
-              style={{ caretColor: '#d97706' }}
+              style={{ caretColor: 'transparent' }}
               disabled={loading}
             />
 
@@ -130,12 +98,12 @@ export default function Terminal({ onAnalysisComplete }: Props) {
           </span>
           <div className="flex-1" />
           <button
-            onClick={handleSubmit}
+            onClick={submit}
             disabled={loading || !text.trim()}
             className={`text-[9px] font-typewriter tracking-[0.2em] border px-3 py-0.5 transition-all ${
               loading || !text.trim()
                 ? 'text-stone-400/30 border-stone-400/20 cursor-default'
-                : 'text-amber-700/70 border-amber-700/50 hover:text-amber-600 hover:border-amber-600/60 active:bg-amber-900/20'
+                : 'text-amber-600/90 border-amber-600/60 hover:text-amber-500 hover:border-amber-500/70 active:bg-amber-900/20'
             }`}
           >
             ENTER

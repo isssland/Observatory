@@ -30,8 +30,8 @@ const STATUS = [
     ),
   },
   {
-    key: 'energy' as const,
-    label: 'Energy',
+    key: 'drive' as const,
+    label: 'DRIVE',
     // 闪电图标
     icon: (
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">

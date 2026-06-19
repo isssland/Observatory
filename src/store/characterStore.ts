@@ -13,22 +13,21 @@ import { generateId } from '../utils/id'
 
 // ==================== 初始值 ====================
 
-const FIXED_SKILLS: Skill[] = [
+const PRESET_SKILLS: Skill[] = [
   { id: 'programming', name: 'Programming', level: 1, currentXp: 0, xpToNextLevel: 100, isDynamic: false, createdAt: new Date().toISOString() },
   { id: 'project-building', name: 'Project Building', level: 1, currentXp: 0, xpToNextLevel: 100, isDynamic: false, createdAt: new Date().toISOString() },
-  { id: 'english', name: 'English', level: 1, currentXp: 0, xpToNextLevel: 100, isDynamic: false, createdAt: new Date().toISOString() },
-  { id: 'writing', name: 'Writing', level: 1, currentXp: 0, xpToNextLevel: 100, isDynamic: false, createdAt: new Date().toISOString() },
+  { id: 'communication', name: 'Communication', level: 1, currentXp: 0, xpToNextLevel: 100, isDynamic: false, createdAt: new Date().toISOString() },
 ]
 
 const DEFAULT_STATUS: StatusAttributes = {
   san: 50,
   focus: 50,
-  energy: 50,
+  drive: 50,
 }
 
 const DEFAULT_STATE: CharacterState = {
   status: { ...DEFAULT_STATUS },
-  skills: FIXED_SKILLS.map((s) => ({ ...s })),
+  skills: PRESET_SKILLS.map((s) => ({ ...s })),
   entries: [],
 }
 
@@ -45,6 +44,10 @@ interface CharacterActions {
   hydrate: () => Promise<void>
   /** 获取某个技能的数据 */
   getSkill: (name: string) => Skill | undefined
+  /** 新增/删除/重命名技能 */
+  addSkill: (name: string) => void
+  removeSkill: (id: string) => void
+  renameSkill: (id: string, name: string) => void
 }
 
 type CharacterStore = CharacterState & CharacterActions
@@ -60,34 +63,32 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
     const newStatus: StatusAttributes = {
       san: clamp(state.status.san + analysis.statusChanges.san, 0, 100),
       focus: clamp(state.status.focus + analysis.statusChanges.focus, 0, 100),
-      energy: clamp(state.status.energy + analysis.statusChanges.energy, 0, 100),
+      drive: clamp(state.status.drive + (analysis.statusChanges.drive ?? 0), 0, 100),
     }
 
-    // 2. 更新技能经验
-    const updatedSkills = state.skills.map((skill) => {
-      const change = analysis.skillXpChanges.find(
-        (c) => c.skillName.toLowerCase() === skill.name.toLowerCase()
-      )
-      if (!change || change.isNewSkill) return skill
-      const updated = addSkillXp(skill, change.xpGain)
-      return { ...skill, ...updated }
-    })
+    // 2. 更新技能经验 + 处理 AI 新技能（合并去重）
+    const existingSkills = [...state.skills]
+    const newSkills: Skill[] = []
 
-    // 3. 处理 AI 提议的新技能
-    const newSkills = analysis.skillXpChanges
-      .filter((c) => c.isNewSkill)
-      .map((c) => {
-        const initial = addSkillXp({ level: 1, currentXp: 0, xpToNextLevel: 100 }, c.xpGain)
-        return {
-          id: generateId(),
-          name: c.skillName,
-          level: initial.level,
-          currentXp: initial.currentXp,
+    for (const change of analysis.skillXpChanges) {
+      const key = change.skillName.trim().toLowerCase()
+      // 先找已有技能（忽略大小写）
+      const existingIdx = existingSkills.findIndex((sk) => sk.name.trim().toLowerCase() === key)
+
+      if (existingIdx >= 0) {
+        // 已有技能：直接加 XP（不管 isNewSkill）
+        existingSkills[existingIdx] = { ...existingSkills[existingIdx], ...addSkillXp(existingSkills[existingIdx], change.xpGain) }
+      } else {
+        // 真正的新技能
+        const initial = addSkillXp({ level: 1, currentXp: 0, xpToNextLevel: 100 }, change.xpGain)
+        newSkills.push({
+          id: generateId(), name: change.skillName.trim(),
+          level: initial.level, currentXp: initial.currentXp,
           xpToNextLevel: initial.xpToNextLevel,
-          isDynamic: true,
-          createdAt: now,
-        } satisfies Skill
-      })
+          isDynamic: true, createdAt: now,
+        })
+      }
+    }
 
     // 4. 创建日志条目
     const entry: JournalEntry = {
@@ -99,7 +100,7 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
 
     const newState: CharacterState = {
       status: newStatus,
-      skills: [...updatedSkills, ...newSkills],
+      skills: [...existingSkills, ...newSkills],
       entries: [entry, ...state.entries].slice(0, 100), // 最多保留 100 条
     }
 
@@ -136,6 +137,38 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
     return get().skills.find(
       (s) => s.name.toLowerCase() === name.toLowerCase()
     )
+  },
+
+  addSkill: (name: string) => {
+    const s = get()
+    const key = name.trim().toLowerCase()
+    if (!key) return
+    // 去重
+    if (s.skills.some((sk) => sk.name.trim().toLowerCase() === key)) return
+    const newSkill: Skill = {
+      id: generateId(),
+      name: name.trim(),
+      level: 1, currentXp: 0, xpToNextLevel: 100,
+      isDynamic: false, createdAt: new Date().toISOString(),
+    }
+    const ns = { ...s, skills: [...s.skills, newSkill] }
+    set(ns); saveCharacter(ns)
+  },
+
+  removeSkill: (id: string) => {
+    const s = get()
+    const ns = { ...s, skills: s.skills.filter((sk) => sk.id !== id) }
+    set(ns); saveCharacter(ns)
+  },
+
+  renameSkill: (id: string, name: string) => {
+    const s = get()
+    const key = name.trim().toLowerCase()
+    if (!key) return
+    // 去重：不能和另一个技能重名
+    if (s.skills.some((sk) => sk.id !== id && sk.name.trim().toLowerCase() === key)) return
+    const ns = { ...s, skills: s.skills.map((sk) => sk.id === id ? { ...sk, name: name.trim() } : sk) }
+    set(ns); saveCharacter(ns)
   },
 }))
 

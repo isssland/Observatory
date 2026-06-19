@@ -14,25 +14,23 @@ import type { AiAnalysis, CharacterState } from '../types'
 const SYSTEM_PROMPT = `You are an RPG character attribute analyzer. The user gives you a journal log, and you analyze how it affects their character's status and skills.
 
 ## Status Attributes (short-term fluctuations, ±1~3 per change):
-- SAN (Sanity): + when solving hard problems or debugging successfully; - when frustrated or confused.
-- Focus: + when doing deep work; - when distracted or multitasking.
-- Energy: + when well-rested or exercised; - when staying up late or working long hours.
+- SAN (Sanity): ±0~35, + when solving hard problems or debugging; - when frustrated.
+- FOCUS: ±0~35, + when doing deep work; - when distracted or multitasking.
+- DRIVE: ±0~35, + when motivated, exercised, rested; - when burnout or staying up late.
 
-## Fixed Skills:
-- Programming: coding-related activities
-- Project Building: shipping, building, system design
-- English: learning or using English
-- Writing: writing docs, notes, articles
+## Skills:
+The user's current skill list is provided in the context. Use those exact skill names when assigning XP.
+If you detect a skill area NOT in the user's list that appeared frequently in recent entries, mark isNewSkill: true.
 
 ## Rules:
-1. Status changes should be ±1 to ±3 based on clues in the text.
+1. Status changes should be ±0 to ±35 based on clues in the text. Make meaningful changes proportional to activity depth.
 2. Skill XP gains should be 1 to 10 based on depth and duration of activity.
 3. If you detect a NEW skill area not in the fixed list, set isNewSkill to true for that entry.
 4. Do NOT over-interpret. If there's no clear clue for a stat, leave it at 0.
 5. You MUST output ONLY the JSON object below. No markdown, no code fences, no other text.
 
 ## REQUIRED OUTPUT FORMAT — copy this exact structure:
-{"statusChanges":{"san":0,"focus":0,"energy":0},"skillXpChanges":[{"skillName":"Example","xpGain":0,"isNewSkill":false}]}`;
+{"statusChanges":{"san":0,"focus":0,"drive":0},"skillXpChanges":[{"skillName":"Example","xpGain":0,"isNewSkill":false}]}`;
 
 function buildUserPrompt(state: CharacterState, entryText: string): string {
   const skillSummary = state.skills
@@ -40,7 +38,7 @@ function buildUserPrompt(state: CharacterState, entryText: string): string {
     .join(', ')
 
   return `Current character state:
-SAN: ${state.status.san}, Focus: ${state.status.focus}, Energy: ${state.status.energy}
+SAN: ${state.status.san}, Focus: ${state.status.focus}, Drive: ${state.status.drive}
 Skills: ${skillSummary || 'none'}
 
 Journal entry:
@@ -87,7 +85,7 @@ async function callOpenAI(
   apiKey: string,
   state: CharacterState,
   entryText: string
-): Promise<AiAnalysis> {
+): Promise<unknown> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -113,14 +111,14 @@ async function callOpenAI(
 
   const data = await response.json()
   const text: string = data.choices[0].message.content
-  return parseAiJson(text)
+  return parseAiJson(text) // raw unknown
 }
 
 async function callDeepSeek(
   apiKey: string,
   state: CharacterState,
   entryText: string
-): Promise<AiAnalysis> {
+): Promise<unknown> {
   const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -153,7 +151,7 @@ async function callClaude(
   apiKey: string,
   state: CharacterState,
   entryText: string
-): Promise<AiAnalysis> {
+): Promise<unknown> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -188,19 +186,79 @@ async function callClaude(
 // ==================== 工具函数 ====================
 
 /** 解析 AI 返回的 JSON，兼容 markdown 代码块包裹 */
-function parseAiJson(text: string): AiAnalysis {
-  // 去掉 ```json ... ``` 或 ``` ... ``` 包裹
+function parseAiJson(text: string): unknown {
   let cleaned = text.trim()
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
   }
   try {
-    return JSON.parse(cleaned) as AiAnalysis
+    return JSON.parse(cleaned)
   } catch {
     throw new Error(
       `Failed to parse AI response as JSON.\n\nRaw response (first 500 chars):\n${text.slice(0, 500)}`
     )
   }
+}
+
+/** 严格校验并规范化 AI 返回的 analysis */
+export function validateAnalysis(raw: unknown): AiAnalysis {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('AI response is not a JSON object')
+  }
+  const obj = raw as Record<string, unknown>
+
+  // --- statusChanges ---
+  const statusRaw = obj.statusChanges as Record<string, unknown> | undefined
+  const san = clampDelta(toFinite(statusRaw?.san, 0), -35, 35)
+  const focus = clampDelta(toFinite(statusRaw?.focus, 0), -35, 35)
+  const drive = clampDelta(toFinite(statusRaw?.drive, 0), -35, 35)
+
+  // --- skillXpChanges ---
+  let skillList: SkillXpChangeRaw[] = []
+  if (Array.isArray(obj.skillXpChanges)) {
+    skillList = obj.skillXpChanges as SkillXpChangeRaw[]
+  }
+
+  // 合并同一次返回中的重复 skillName
+  const merged = new Map<string, SkillXpChangeRaw>()
+  for (const sc of skillList) {
+    const name = typeof sc.skillName === 'string' ? sc.skillName.trim() : ''
+    if (!name) continue
+    const xp = clampDelta(toFinite(sc.xpGain, 0), 0, 100)
+    const isNew = typeof sc.isNewSkill === 'boolean' ? sc.isNewSkill : false
+    const key = name.toLowerCase()
+    const existing = merged.get(key)
+    if (existing) {
+      existing.xpGain = clampDelta(existing.xpGain + xp, 0, 100)
+      existing.isNewSkill = existing.isNewSkill || isNew
+    } else {
+      merged.set(key, { skillName: name, xpGain: xp, isNewSkill: isNew })
+    }
+  }
+
+  return {
+    statusChanges: { san, focus, drive },
+    skillXpChanges: Array.from(merged.values()),
+  }
+}
+
+interface SkillXpChangeRaw {
+  skillName: string
+  xpGain: number
+  isNewSkill: boolean
+}
+
+function toFinite(v: unknown, fallback: number): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string') {
+    const n = Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return fallback
+}
+
+function clampDelta(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v))
 }
 
 // ==================== 公开接口 ====================
@@ -232,32 +290,13 @@ export async function analyzeEntry(
   }
 
   try {
-    let analysis: AiAnalysis
-    switch (config.provider) {
-      case 'openai':
-        analysis = await callOpenAI(config.apiKey, state, entryText)
-        break
-      case 'deepseek':
-        analysis = await callDeepSeek(config.apiKey, state, entryText)
-        break
-      case 'claude':
-      default:
-        analysis = await callClaude(config.apiKey, state, entryText)
-    }
+    const raw = config.provider === 'openai'
+      ? await callOpenAI(config.apiKey, state, entryText)
+      : config.provider === 'deepseek'
+        ? await callDeepSeek(config.apiKey, state, entryText)
+        : await callClaude(config.apiKey, state, entryText)
 
-    // 基础校验：确保返回数据格式正确
-    if (!analysis.statusChanges || !analysis.skillXpChanges) {
-      return {
-        success: false,
-        error: `AI response missing required fields. Got: ${JSON.stringify(analysis)}`,
-      }
-    }
-
-    // 确保三个状态字段存在
-    analysis.statusChanges.san = analysis.statusChanges.san ?? 0
-    analysis.statusChanges.focus = analysis.statusChanges.focus ?? 0
-    analysis.statusChanges.energy = analysis.statusChanges.energy ?? 0
-
+    const analysis = validateAnalysis(raw)
     return { success: true, analysis }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

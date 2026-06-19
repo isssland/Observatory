@@ -3,6 +3,7 @@ import { useCharacterStore } from '../store/characterStore'
 import StatusCard from '../components/StatusCard'
 import SkillList from '../components/SkillList'
 import SettingsModal from '../components/SettingsModal'
+import ReportModal from '../components/ReportModal'
 
 interface Props {
   printing: boolean
@@ -13,6 +14,7 @@ export default function CharacterSheet({ printing }: Props) {
   const skills = useCharacterStore((s) => s.skills)
   const entries = useCharacterStore((s) => s.entries)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   const totalLevels = skills.reduce((sum, s) => sum + s.level, 0)
   const latestEntry = entries[0]
@@ -49,7 +51,13 @@ export default function CharacterSheet({ printing }: Props) {
               No. {String(entries.length).padStart(3, '0')}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setReportOpen(true)}
+              className="text-[9px] text-stone-400 hover:text-stone-600 font-typewriter tracking-wider border border-stone-300 px-1.5 py-0.5"
+            >
+              REPORT
+            </button>
             <div className="text-right">
               <div className="text-lg text-stone-600 tabular-nums font-typewriter">
                 TL:{String(totalLevels).padStart(2, '0')}
@@ -81,7 +89,7 @@ export default function CharacterSheet({ printing }: Props) {
           <h2 className="text-[9px] text-stone-500 tracking-widest mb-3 font-typewriter">
             SKILLS
           </h2>
-          <SkillList skills={skills} />
+          <SkillList />
         </section>
 
         {/* 最近日志 */}
@@ -110,6 +118,7 @@ export default function CharacterSheet({ printing }: Props) {
 
       {/* 设置面板 */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} />
     </div>
   )
 }

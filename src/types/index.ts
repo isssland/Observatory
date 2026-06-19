@@ -6,7 +6,7 @@
 export interface StatusAttributes {
   san: number       // 理智，范围 0–100
   focus: number     // 专注，范围 0–100
-  energy: number    // 精力，范围 0–100
+  drive: number     // 驱动力，范围 0–100
 }
 
 /** 技能（长期成长） */
@@ -43,7 +43,7 @@ export interface JournalEntry {
 /** 应用设置 */
 export interface AppSettings {
   apiKey: string
-  apiProvider: 'claude' | 'openai'
+  apiProvider: 'claude' | 'openai' | 'deepseek'
 }
 
 /** 角色完整状态 */
