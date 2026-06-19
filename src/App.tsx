@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import CharacterSheet from './pages/CharacterSheet'
-import NewEntry from './pages/NewEntry'
+import Terminal from './components/Terminal'
 import Analysis from './pages/Analysis'
 import { useCharacterStore } from './store/characterStore'
 import type { AiAnalysis } from './types'
@@ -57,7 +57,9 @@ export default function App() {
       {/* ===== 页面内容 ===== */}
       {currentPage === 'sheet' && <CharacterSheet printing={printing} />}
       {currentPage === 'entry' && (
-        <NewEntry onAnalysisComplete={handleAnalysisComplete} />
+        <div className="pt-6">
+          <Terminal onAnalysisComplete={handleAnalysisComplete} />
+        </div>
       )}
       {currentPage === 'analysis' && pendingAnalysis && (
         <Analysis
