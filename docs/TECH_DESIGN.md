@@ -1,11 +1,11 @@
-# RPG 角色属性记录应用 — 技术设计
+# Observatory — 技术设计
 
 ## 技术栈
-- 前端：React + TypeScript + Vite
-- 样式：Tailwind CSS
+- 前端：React 19 + TypeScript + Vite
+- 样式：Tailwind CSS v4（CRT 终端 + 白色档案纸）
 - 状态管理：Zustand
 - 数据存储：IndexedDB（Dexie.js）
-- AI 接口：Claude API / OpenAI API（用户自行配置 Key）
+- AI 接口：DeepSeek / Claude / OpenAI
 - PWA：vite-plugin-pwa
 - 部署：Vercel
 
@@ -14,85 +14,60 @@
 ```
 src/
   components/       # 通用组件
-    StatusCard.tsx        # 状态属性展示卡片
-    SkillList.tsx         # 技能列表
-    ChangeDisplay.tsx     # AI 结算变化展示
-  pages/            # 页面
-    CharacterSheet.tsx    # 角色档案（默认首页）
+    StatusCard.tsx        # 状态卡片（SAN / Focus / Drive + SVG 图标）
+    SkillList.tsx         # 技能列表（可编辑/新增/删除）
+    ReportModal.tsx       # 周报月报弹窗
+    Terminal.tsx          # CRT 终端输入
+    SettingsModal.tsx     # API Key 配置
+  pages/
+    CharacterSheet.tsx    # 角色档案纸
     NewEntry.tsx          # 日志输入
-    Analysis.tsx          # AI 结算
-  store/            # Zustand 状态
-    characterStore.ts     # 角色数据 store
-    settingsStore.ts      # 设置 store（API Key 等）
-  services/         # 外部服务
-    aiAnalysis.ts         # LLM API 调用 + Prompt 构造
-  db/               # 数据库
-    index.ts              # Dexie schema 定义
-  hooks/            # 自定义 Hooks
-    useCharacter.ts       # 角色数据读写
-    useAiAnalysis.ts      # AI 分析请求封装
-  utils/            # 工具函数
-    xp.ts                 # 经验值 / 等级计算
-    format.ts             # 格式化工具
-  types/            # 类型定义
+    Analysis.tsx          # AI 结算弹窗
+  store/
+    characterStore.ts     # Zustand 数据中心
+  services/
+    aiAnalysis.ts         # LLM API + Prompt + validateAnalysis 校验
+  hooks/
+    useEntrySubmission.ts # 日志提交公共 Hook
+  db/
+    index.ts              # Dexie schema
+  utils/
+    xp.ts                 # 经验/等级计算
+    report.ts             # 周报月报计算
+    id.ts                 # UUID
+  types/
     index.ts
 ```
 
 ## 数据模型
 
-### CharacterState（角色状态 — Zustand store 顶层）
-- status: StatusAttributes
-- skills: Skill[]
-- entries: JournalEntry[]
+### StatusAttributes（状态 — 短期波动）
+- san: number (0–100)
+- focus: number (0–100)
+- drive: number (0–100)
 
-### StatusAttributes（状态属性 — 短期波动）
-- san: number        // 理智，范围 0–100
-- focus: number      // 专注，范围 0–100
-- energy: number     // 精力，范围 0–100
-
-### Skill（技能 — 长期成长）
-- id: string
-- name: string             // 技能名
-- level: number            // 当前等级
-- currentXp: number        // 当前等级经验值
-- xpToNextLevel: number    // 升级所需经验
-- isDynamic: boolean       // 固定技能 / AI 动态生成
-- createdAt: string        // 创建时间
+### Skill（技能）
+- id, name, level, currentXp, xpToNextLevel, isDynamic, createdAt
 
 ### JournalEntry（日志条目）
-- id: string
-- text: string             // 原始输入文本
-- timestamp: string        // ISO 日期
-- analysis: AiAnalysis     // AI 分析结果
+- id, text, timestamp, analysis: AiAnalysis
 
 ### AiAnalysis（AI 分析结果）
-- statusChanges: {
-    san: number
-    focus: number
-    energy: number
-  }
-- skillXpChanges: {
-    skillName: string
-    xpGain: number
-    isNewSkill: boolean
-  }[]
+- statusChanges: { san, focus, drive }
+- skillXpChanges: { skillName, xpGain, isNewSkill }[]
 
-### AppSettings（应用设置 — 单独存储）
-- apiKey: string           // LLM API Key
-- apiProvider: 'claude' | 'openai'  // API 提供商
+### AppSettings
+- apiKey: string
+- apiProvider: 'claude' | 'openai' | 'deepseek'
 
-## 等级经验公式
+## 等级公式
+`xpToNextLevel = level × 100`
 
-```
-xpToNextLevel = level * 100
-升级时：currentXp 归零，超出部分滚入下级
-```
+## 关键点
 
-## 关键技术点
-
-1. 使用 Dexie.js 操作 IndexedDB，数据完全本地存储
-2. 使用 Zustand 管理角色状态，persist 中间件自动同步到 IndexedDB
-3. AI 分析使用结构化 JSON 输出，前端解析后展示给用户确认
-4. 用户可在 Analysis 页面修改 AI 建议值，拥有最终解释权
-5. PWA 配置 Service Worker 缓存静态资源，离线可查看历史数据
-6. API Key 单独存储，调用时从本地读取，不上传任何服务器
+1. IndexedDB 本地存储，数据全在客户端
+2. Zustand store 集中管理状态，每次变更自动 saveCharacter()
+3. AI 返回经 validateAnalysis() 严格校验后写入
+4. 技能支持用户自定义，AI 动态识别新技能并与已有合并去重
+5. PWA Service Worker 缓存静态资源，离线可查看
+6. API Key 存 localStorage，仅发送到对应厂商
